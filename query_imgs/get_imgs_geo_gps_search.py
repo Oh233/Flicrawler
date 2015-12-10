@@ -1,11 +1,12 @@
 #!/usr/bin/python
 
-#Image querying script written by Tamara Berg,
-#and extended heavily James Hays
+# Image querying script written by Tamara Berg,
+# and extended heavily James Hays
+# Modified a little bit by Haozhi Qi
 
-#9/26/2007 added dynamic timeslices to query more efficiently.
-#8/18/2008 added new fields and set maximum time slice.
-#8/19/2008 this is a much simpler function which gets ALL geotagged photos of
+# 9/26/2007 added dynamic time slices to query more efficiently.
+# 8/18/2008 added new fields and set maximum time slice.
+# 8/19/2008 this is a much simpler function which gets ALL geotagged photos of
 # sufficient accuracy.  No queries, no negative constraints.
 # divides up the query results into multiple files
 # 1/5/2009
@@ -16,47 +17,51 @@ import sys, string, math, time, socket
 from flickrapi2 import FlickrAPI
 from datetime import datetime
 
-socket.setdefaulttimeout(30)  #30 second time out on sockets before they throw
-#an exception.  I've been having trouble with urllib.urlopen hanging in the 
-#flickr API.  This will show up as exceptions.IOError.
+socket.setdefaulttimeout(30)
+# 30 second time out on sockets before they throw
+# an exception.  I've been having trouble with urllib.urlopen hanging in the
+# flickr API.  This will show up as exceptions.IOError.
+# The time out needs to be pretty long, it seems, because the flickr servers can be slow
+# to respond to our big searches.
 
-#the time out needs to be pretty long, it seems, because the flickr servers can be slow
-#to respond to our big searches.
-
-print sys.argv 
+# Get query list from the argument
+# TODO: should change it using arg parser
 if len(sys.argv) > 1:
     print "Reading queries from file " + sys.argv[1]
-    query_file_name = sys.argv[1] #0 is the command name.
+    query_file_name = sys.argv[1]
 else:
-    print "No command line arguments, reading queries from " + 'queries.txt'
-    query_file_name = 'place_rec_queries.txt'
-    #query_file_name = 'place_rec_queries_fall08.txt'
+    print "No command line arguments, exit"
+    exit()
 
-###########################################################################
-# Modify this section to reflect your data and specific search 
-###########################################################################
-# flickr auth information:
-# change these to your flickr api keys and secret
+"""
+    Modify this section to reflect your data and specific search
+    1. APIKey and Secret, this is got from flicker official website
+
+"""
+
 flickrAPIKey = "b653e65cf5ffd83d7584e5c860627ae8"  # API key
 flickrSecret = "2df09d4260333f44"                  # shared "secret"
 
 query_file = open(query_file_name, 'r')
 
-#aggregate all of the positive and negative queries together.
-pos_queries = []  #an empty list
-neg_queries = ''  #a string
+# aggregate all of the positive and negative queries together.
+pos_queries = []
+neg_queries = ''
 num_queries = 0
 
 for line in query_file:
-    if line[0] != '#' and len(line) > 2:  #line end character is 2 long?
-      #print line[0:len(line)-2]
-      if line[0] != '-':
-        pos_queries = pos_queries + [line[0:len(line)-2]]
-        num_queries = num_queries + 1
-      if line[0] == '-':
-        neg_queries = neg_queries + ' ' + line[0:len(line)-2]
+    if line[0] != '#' and len(line) > 2:
+        # line end character is 2 long?
+        # print line[0:len(line)-2]
+        if line[0] != '-':
+            pos_queries = pos_queries + [line[0:len(line)-2]]
+            num_queries += 1
+        if line[0] == '-':
+            neg_queries = neg_queries + ' ' + line[0:len(line)-2]
         
 query_file.close()
+
+
 print 'positive queries:  '
 print pos_queries
 print 'negative queries:  ' + neg_queries
@@ -116,37 +121,30 @@ for current_tag in range(0, num_queries):
         print 'Upper bound is ' + str(datetime.fromtimestamp(upper_bound))
     
         keep_going = 6 #search stops after a fixed number of iterations
-        while( keep_going > 0 and maxtime < endtime):
-        
+        while keep_going > 0 and maxtime < endtime:
+
             try:
                 rsp = fapi.photos_search(api_key=flickrAPIKey,
                                         ispublic="1",
                                         media="photos",
                                         per_page="250", 
-                                        page="1",
-                                        has_geo = "1", #bbox="-180, -90, 180, 90",
-                                        text=query_string,
-                                        accuracy="6", #6 is region level.  most things seem 10 or better.
-                                        min_upload_date=str(mintime),
-                                        max_upload_date=str(maxtime))
-                                        ##min_taken_date=str(datetime.fromtimestamp(mintime)),
-                                        ##max_taken_date=str(datetime.fromtimestamp(maxtime)))
-                #we want to catch these failures somehow and keep going.
+                                        page="1")
+                # we want to catch these failures somehow and keep going.
                 time.sleep(1)
                 fapi.testFailure(rsp)
-                total_images = rsp.photos[0]['total'];
-                null_test = int(total_images); #want to make sure this won't crash later on for some reason
-                null_test = float(total_images);
+                total_images = rsp.photos[0]['total']
+                null_test = int(total_images)
+                null_test = float(total_images)
         
                 print '\nnumimgs: ' + total_images
                 print 'mintime: ' + str(mintime) + ' maxtime: ' + str(maxtime) + ' timeskip:  ' + str(maxtime - mintime)
             
-                if( int(total_images) > desired_photos ):
+                if int(total_images) > desired_photos:
                     print 'too many photos in block, reducing maxtime'
                     upper_bound = maxtime
-                    maxtime = (lower_bound + maxtime) / 2 #midpoint between current value and lower bound.
+                    maxtime = (lower_bound + maxtime) / 2
                 
-                if( int(total_images) < desired_photos):
+                if int(total_images) < desired_photos:
                     print 'too few photos in block, increasing maxtime'
                     lower_bound = maxtime
                     maxtime = (upper_bound + maxtime) / 2
@@ -154,7 +152,7 @@ for current_tag in range(0, num_queries):
                 print 'Lower bound is ' + str(datetime.fromtimestamp(lower_bound))
                 print 'Upper bound is ' + str(datetime.fromtimestamp(upper_bound))
             
-                if( int(total_images) > 0): #only if we're not in a degenerate case
+                if int(total_images) > 0: #only if we're not in a degenerate case
                     keep_going = keep_going - 1
                 else:
                     upper_bound = upper_bound + timeskip;    
@@ -164,12 +162,8 @@ for current_tag in range(0, num_queries):
                 raise
             except:
                 print sys.exc_info()[0]
-                #print type(inst)     # the exception instance
-                #print inst.args      # arguments stored in .args
-                #print inst           # __str__ allows args to printed directly
                 print ('Exception encountered while querying for images\n')
 
-        #end of while binary search    
         print 'finished binary search'
         
         s = '\nmintime: ' + str(mintime) + ' maxtime: ' + str(maxtime)
