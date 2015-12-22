@@ -94,6 +94,29 @@ def search_from_current(query_string):
     return threshold_time, current_time, total_images, rsp
 
 
+def write_output_list(photo_desc, out_file):
+    out_file.write('photo: ' + photo_desc['id'] + ' ' + photo_desc['secret'] + ' ' + photo_desc['server'] + '\n')
+    out_file.write('owner: ' + photo_desc['owner'] + '\n')
+    out_file.write('title: ' + photo_desc['title'].encode("ascii", "replace") + '\n')
+
+    out_file.write('originalsecret: ' + photo_desc['originalsecret'] + '\n')
+    out_file.write('originalformat: ' + photo_desc['originalformat'] + '\n')
+    out_file.write('o_height: ' + photo_desc['o_height'] + '\n')
+    out_file.write('o_width: ' + photo_desc['o_width'] + '\n')
+    out_file.write('datetaken: ' + photo_desc['datetaken'].encode("ascii","replace") + '\n')
+    out_file.write('dateupload: ' + photo_desc['dateupload'].encode("ascii","replace") + '\n')
+
+    out_file.write('tags: ' + photo_desc['tags'].encode("ascii","replace") + '\n')
+
+    out_file.write('license: ' + photo_desc['license'].encode("ascii","replace") + '\n')
+    out_file.write('latitude: ' + photo_desc['latitude'].encode("ascii","replace") + '\n')
+    out_file.write('longitude: ' + photo_desc['longitude'].encode("ascii","replace") + '\n')
+    out_file.write('accuracy: ' + photo_desc['accuracy'].encode("ascii","replace") + '\n')
+
+    out_file.write('views: ' + photo_desc['views'] + '\n')
+    out_file.write('\n')
+
+
 def image_retrieval(query_string):
     out_file = open('./lists/' + query_string + '.txt', 'w')
 
@@ -127,17 +150,17 @@ def image_retrieval(query_string):
 
         total_images_queried = total_images_queried + min((num_visit_pages * 250), int(total_images))
 
-        pagenum = 1
-        while pagenum <= num_visit_pages:
-            # for pagenum in range(1, num_visit_pages + 1):
-            print '  page number ' + str(pagenum)
+        page_num = 1
+        while page_num <= num_visit_pages:
+            # for page_num in range(1, num_visit_pages + 1):
+            print '  page number ' + str(page_num)
             try:
                 rsp = flicker_api.photos_search(
                     api_key=flickrAPIKey,
                     ispublic="1",
                     media="photos",
                     per_page="250",
-                    page=str(pagenum),
+                    page=str(page_num),
                     sort="interestingness-desc",
                     text=query_string,
                     min_upload_date=str(min_time),
@@ -149,40 +172,17 @@ def image_retrieval(query_string):
             except KeyboardInterrupt:
                 print('Keyboard exception while querying for images, exiting\n')
                 raise
-            except:
-                print sys.exc_info()[0]
-                print ('Exception encountered while querying for images\n')
             else:
                 # and print them
-                k = getattr(rsp, 'photos', None)
-                if k:
-                    m = getattr(rsp.photos[0], 'photo', None)
-                    if m:
+                if getattr(rsp, 'photos', None):
+                    if getattr(rsp.photos[0], 'photo', None):
                         for b in rsp.photos[0].photo:
-                            if b != None:
-                                out_file.write('photo: ' + b['id'] + ' ' + b['secret'] + ' ' + b['server'] + '\n')
-                                out_file.write('owner: ' + b['owner'] + '\n')
-                                out_file.write('title: ' + b['title'].encode("ascii","replace") + '\n')
-
-                                out_file.write('originalsecret: ' + b['originalsecret'] + '\n')
-                                out_file.write('originalformat: ' + b['originalformat'] + '\n')
-                                out_file.write('o_height: ' + b['o_height'] + '\n')
-                                out_file.write('o_width: ' + b['o_width'] + '\n')
-                                out_file.write('datetaken: ' + b['datetaken'].encode("ascii","replace") + '\n')
-                                out_file.write('dateupload: ' + b['dateupload'].encode("ascii","replace") + '\n')
-
-                                out_file.write('tags: ' + b['tags'].encode("ascii","replace") + '\n')
-
-                                out_file.write('license: ' + b['license'].encode("ascii","replace") + '\n')
-                                out_file.write('latitude: '  + b['latitude'].encode("ascii","replace") + '\n')
-                                out_file.write('longitude: ' + b['longitude'].encode("ascii","replace") + '\n')
-                                out_file.write('accuracy: '  + b['accuracy'].encode("ascii","replace") + '\n')
-
-                                out_file.write('views: ' + b['views'] + '\n')
-                                out_file.write('interestingness: ' + str(current_image_num) + ' out of ' + str(total_images) + '\n');
-                                out_file.write('\n')
+                            if b is not None:
+                                write_output_list(b, out_file)
+                                out_file.write('interestingness: ' + str(current_image_num) + ' out of '
+                                               + str(total_images) + '\n')
                                 current_image_num += 1
-                pagenum += 1  # this is in the else exception block.  It won't increment for a failure.
+                page_num += 1  # this is in the else exception block.  It won't increment for a failure.
 
     out_file.write('Total images queried: ' + str(total_images_queried) + '\n')
     out_file.close()
